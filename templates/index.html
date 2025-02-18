@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PDF Revenue Extractor</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+  <div class="container mt-5">
+    <h1 class="mb-4">PDF Revenue Extractor</h1>
+    
+    <!-- Display flash messages -->
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="alert alert-info" role="alert">
+          {{ messages[0] }}
+        </div>
+      {% endif %}
+    {% endwith %}
+    
+    <!-- PDF Upload Form -->
+    <form method="post" action="{{ url_for('upload') }}" enctype="multipart/form-data">
+      <div class="mb-3">
+        <label for="pdf_file" class="form-label">Upload a PDF file</label>
+        <input class="form-control" type="file" id="pdf_file" name="pdf_file" required>
+      </div>
+      <button type="submit" class="btn btn-primary">Upload and Extract Revenue</button>
+    </form>
+  </div>
+</body>
+</html>
