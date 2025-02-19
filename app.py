@@ -1,4 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
+from flask_sqlalchemy import SQLAlchemy
+
 
 from google import genai
 from google.genai import types
@@ -10,37 +12,44 @@ import logging
 import pickle
 from dotenv import (
     load_dotenv,
-)  # Use python-dotenv in your Python script to load the environment variables
+)  # use python-dotenv in your Python script to load the environment variables
+import sqlalchemy
 
-
-# Load the environment variables from .env file
+# load the environment variables from .env file
 load_dotenv()
 
 
 # api keys load from env
-gemini_api_key = os.getenv("GEMINI_API_KEY")
-flask_secret_key = os.getenv("FLASK_SECRET_KEY")
+GEMINI_KEY = os.getenv("GEMINI_API_KEY")
+FLAKS_KEY = os.getenv("FLASK_SECRET_KEY")
+DB_URL = os.getenv("DB_URL")
 
 app = Flask(__name__)
 
+# app settings
 app.config["UPLOAD_FOLDER"] = "uploads"
-app.secret_key = flask_secret_key
+app.secret_key = FLAKS_KEY
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+
+# use database URL from .env
+app.config["SQLALCHEMY_DATABASE_URI"] = DB_URL
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+db = SQLAlchemy(app)
 
 
 # configure loggin to catch capture errors and infos
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Gemini implementation
-# Only run this block for Gemini Developer API
-client = genai.Client(api_key=gemini_api_key)
+# gemini implementation
+client = genai.Client(api_key=GEMINI_KEY)
 response = client.models.generate_content(
     model="gemini-2.0-flash-001", contents="Whats the revenue in 2022"
 )
 
 
-# Vector Store Setup
+# vector Store Setup
 vector_store = None
 
 # Load existing vector store if available
