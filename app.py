@@ -3,8 +3,6 @@ from flask_sqlalchemy import SQLAlchemy
 
 
 from google import genai
-from google.genai import types
-
 from langchain.chains import LLMChain
 from langchain_community.document_loaders import PyPDFLoader
 import os
