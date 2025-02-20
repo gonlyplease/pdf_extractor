@@ -12,6 +12,8 @@ from dotenv import (
     load_dotenv,
 )  # use python-dotenv in your Python script to load the environment variables
 import sqlalchemy
+from models import db, RevenueData
+from revenue_extractor import create_gemini_client, extract_revenue_from_pdf
 
 # load the environment variables from .env file
 load_dotenv()
@@ -41,10 +43,14 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # gemini implementation
-client = genai.Client(api_key=GEMINI_KEY)
-response = client.models.generate_content(
+"""response = client.models.generate_content(
     model="gemini-2.0-flash-001", contents="Whats the revenue in 2022"
-)
+)"""
+
+# Create a Gemini API client (make sure GEMINI_API_KEY is set in your .env)
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+gemini_client = genai.Client(api_key=GEMINI_KEY)
+MODEL_ID = "gemini-2.0-flash-001"
 
 
 # vector Store Setup
@@ -83,25 +89,22 @@ def upload():
         file_path = os.path.join(app.config["UPLOAD_FOLDER"], file.filename)
         file.save(file_path)
 
-        # Extract text from the PDF
-        pdf_loader = PyPDFLoader(file_path)
-        documents = pdf_loader.load()
-        full_text = "\n".join([doc.page_content for doc in documents])
-
-        # prompt to extract revenue information
-        prompt = (
-            "Extract the revenue information from the following text:\n" f"{full_text}"
+        # Extract revenue data from the PDF
+        revenue_extraction = extract_revenue_from_pdf(
+            file_path, gemini_client, MODEL_ID
         )
 
-        # Call the Gemini API with the prompt
-        response = client.models.generate_content(
-            model="gemini-2.0-flash-001", contents=prompt
+        # Insert the extracted data into the database
+        new_entry = RevenueData(
+            company_name=revenue_extraction.company_name,
+            year=revenue_extraction.year,
+            revenue=int(revenue_extraction.revenue),  # Convert to integer if necessary
+            currency=revenue_extraction.currency,
         )
+        db.session.add(new_entry)
+        db.session.commit()
 
-        # result
-        revenue_info = response.text
-
-        flash(f"Revenue Extraction Result: {revenue_info}")
+        flash(f"Revenue Extraction Result: {revenue_extraction.model_dump_json()}")
         return redirect(url_for("index"))
     except Exception as e:
         logger.error("Error processing PDF: %s", e)
