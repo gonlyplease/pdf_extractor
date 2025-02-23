@@ -1,93 +1,89 @@
-import os
-import logging
-import requests  # CHANGED: Added requests import to send HTTP requests
-
+# dashboard.py
 import streamlit as st
+import os
+import tempfile
 import pandas as pd
-import psycopg2
-import plotly.express as px
+import logging
 from dotenv import load_dotenv
 
-# CHANGED: Removed unused imports (tempfile, genai, extract_revenue_from_pdf)
+# Import your modules from the Flask app code
+from models import RevenueData
+from revenue_extractor import extract_revenue_from_pdf
+from google import genai
 
-# Load environment variables
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+# Load Environment Variables
 load_dotenv()
+DB_URL = os.getenv("DB_URL")
+GEMINI_KEY = os.getenv("GEMINI_API_KEY")
+MODEL_ID = "gemini-2.0-flash-001"
 
-# Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# CHANGED: Define the Flask upload URL via an environment variable or default to localhost
-FLASK_UPLOAD_URL = os.getenv("FLASK_UPLOAD_URL", "http://localhost:5000/upload")
+# Set Up SQLAlchemy Session
+engine = create_engine(DB_URL)
+Session = sessionmaker(bind=engine)
+session = Session()
 
+# Streamlit Frontend Layout
+st.title("PDF Revenue Extractor Frontend")
 
-def get_postgres_data():
+st.header("Upload PDF File")
+uploaded_file = st.file_uploader("Choose a PDF file", type=["pdf"])
+
+if uploaded_file is not None:
+    # Save the uploaded file to a temporary location
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+        tmp_file.write(uploaded_file.read())
+        tmp_file_path = tmp_file.name
+    st.info("File uploaded. Processing...")
+
+    # Initialize the Gemini API client
+    gemini_client = genai.Client(api_key=GEMINI_KEY)
+
     try:
-        # CHANGED: Using context manager for the connection to improve resource management
-        with psycopg2.connect(
-            host=os.getenv("DB_HOST", "localhost"),
-            database=os.getenv("DB_NAME", "scavenger_task_db"),
-            user=os.getenv("DB_USERNAME"),
-            password=os.getenv("DB_PASSWORD"),
-        ) as conn:
-            query = "SELECT * FROM revenue_data;"
-            df = pd.read_sql(query, conn)
-        return df
-    except Exception as e:
-        st.error(f"Error connecting to database: {e}")
-        return pd.DataFrame()
+        # Extract revenue data from the PDF
+        revenue_data = extract_revenue_from_pdf(tmp_file_path, gemini_client, MODEL_ID)
 
-
-st.title("PDF Revenue Extractor Dashboard")
-
-with st.form("upload_form"):
-    st.header("Upload a PDF File to Flask App")
-    uploaded_file = st.file_uploader("Choose a PDF file", type=["pdf"])
-    submit = st.form_submit_button("Upload to Flask")
-
-if submit:
-    if not uploaded_file:
-        st.error("Please upload a PDF file.")
-    else:
-        try:
-            # CHANGED: Prepare the file upload payload for the Flask endpoint.
-            # uploaded_file is a BytesIO object so we use getvalue() to get its content.
-            files = {
-                "pdf_file": (
-                    uploaded_file.name,
-                    uploaded_file.getvalue(),
-                    "application/pdf",
-                )
-            }
-            response = requests.post(FLASK_UPLOAD_URL, files=files)
-            # CHANGED: Check for success status codes (200 or redirect 302)
-            if response.status_code in [200, 302]:
-                st.success("File uploaded successfully to the Flask app!")
-                st.write("Response from Flask app:")
-                st.write(response.text)
-            else:
-                st.error(f"Upload failed with status code {response.status_code}")
-        except Exception as e:
-            st.error(f"Error uploading file to Flask app: {e}")
-
-st.header("Current Revenue Data")
-df = get_postgres_data()
-if not df.empty:
-    st.subheader("Revenue Data from Postgres")
-    st.dataframe(df)
-
-    st.subheader("Revenue Data per Company")
-    try:
-        fig = px.bar(
-            df,
-            x="company_name",
-            y="revenue",
-            title="Revenue per Company",
-            labels={"company_name": "Company", "revenue": "Revenue"},
-            hover_data=["year", "currency"],
+        # Insert the extracted data into the database
+        new_entry = RevenueData(
+            company_name=revenue_data.company_name,
+            year=revenue_data.year,
+            revenue=int(revenue_data.revenue),  # ensuring it's an integer
+            currency=revenue_data.currency,
         )
-        st.plotly_chart(fig)
+        session.add(new_entry)
+        session.commit()
+
+        st.success("PDF processed and data saved successfully!")
+        st.json(revenue_data.model_dump_json())
     except Exception as e:
-        st.error(f"Error generating plot: {e}")
+        logger.error("Error processing PDF: %s", e)
+        st.error("An error occurred while processing the PDF.")
+    finally:
+        # Clean up the temporary file
+        os.remove(tmp_file_path)
+
+st.header("Revenue Data Table")
+# Retrieve all records from the revenue_data table
+entries = session.query(RevenueData).all()
+
+if entries:
+    data = []
+    for entry in entries:
+        data.append(
+            {
+                "ID": entry.id,
+                "Company Name": entry.company_name,
+                "Year": entry.year,
+                "Revenue": entry.revenue,
+                "Currency": entry.currency,
+            }
+        )
+    df = pd.DataFrame(data)
+    st.dataframe(df)
 else:
-    st.info("No revenue data found in the database.")
+    st.write("No revenue data available.")

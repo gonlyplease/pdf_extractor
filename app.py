@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 from models import db, RevenueData
 from revenue_extractor import extract_revenue_from_pdf
 
+
 # Changed: Removed unused import: PyPDFLoader from langchain_community.document_loaders
 
 # Load the environment variables from .env file
@@ -23,6 +24,7 @@ FLASK_KEY = os.getenv("FLASK_SECRET_KEY")
 DB_URL = os.getenv("DB_URL")
 
 app = Flask(__name__)
+
 
 # App settings
 app.config["UPLOAD_FOLDER"] = "uploads"
