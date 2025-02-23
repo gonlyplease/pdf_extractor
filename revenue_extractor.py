@@ -28,10 +28,12 @@ def extract_revenue_from_pdf(
 
     # Construct a prompt with instructions for JSON output matching our schema
     prompt = (
-        "Extract the revenue information from the following text in JSON format. "
-        "The JSON should match this schema: "
+        "The following text is in German. "
+        "Extract the revenue data corresponding specifically to 'gebuchte Bruttobeiträge' for the whole corporate. "
+        "Some reports include several revenue numbers for different sectors; please identify and return only the overall (largest) revenue figure. "
+        "Format the output in JSON as follows: "
         '{"company_name": string, "year": int, "revenue": float, "currency": string}. '
-        "Use full Euro values (not in thousands or millions). "
+        "Ensure that the revenue value is expressed in full Euros (not in thousands or millions). "
         "Text: \n" + full_text
     )
 
