@@ -18,6 +18,6 @@ class RevenueData(db.Model):
 # Pydantic Model for Structured Extraction
 class RevenueExtraction(BaseModel):
     company_name: str = Field(..., description="The name of the company")
-    year: int = Field(..., description="The fiscal year (default is 2022")
+    year: int = Field(..., description="The fiscal year (default is 2022)")
     revenue: float = Field(..., description="The revenue amount in full Euros")
     currency: str = Field(..., description="Currency (default is EUR)")

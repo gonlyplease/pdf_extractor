@@ -7,11 +7,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def create_gemini_client(api_key: str):
-    """Creates and returns a Gemini API client using the provided API key."""
-    return genai.Client(api_key=api_key)
-
-
 def extract_revenue_from_pdf(
     file_path: str, client, model_id: str = "gemini-2.0-flash-001"
 ) -> RevenueExtraction:
