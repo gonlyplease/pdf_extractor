@@ -22,6 +22,9 @@ This project is a PDF extractor that retrieves revenue information from an annua
 ## Notes
 Large Language Models (LLMs) were used during development for debugging purposes and to assist in creating the frontend.
 
+## Sources
+I was inspired by this post to use pydantic and gemini 2.0 for this task: https://www.philschmid.de/gemini-pdf-to-data
+
 ```bash
 git clone <repo-url>
 cd <repo-name>
